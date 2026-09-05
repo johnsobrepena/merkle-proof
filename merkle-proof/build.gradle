@@ -3,6 +3,9 @@ plugins {
 	id 'jacoco'
 }
 
+group = 'io.github.johnsobrepena.ideasparx'
+version = '1.0.0'
+
 repositories {
 	mavenCentral()
 }
@@ -70,9 +73,11 @@ java {
 	}
 }
 
-group = 'io.github.johnsobrepena.ideasparx'
-version = '1.0.0'
-
 application {
 	mainClass = 'io.github.johnsobrepena.ideasparx.App'
+}
+
+jar {
+	exclude '**/App.class'
+	exclude '**/Util.class'
 }
