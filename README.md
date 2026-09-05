@@ -1,4 +1,5 @@
-# Merkle Tree Library (`io.github.johnsobrepena.ideasparx:merkle-proof`)
+# Merkle Tree Library 
+(`io.github.johnsobrepena.ideasparx:merkle-proof`)
 
 High-performance, thread-safe, privacy-preserving Merkle Tree implementation in Java 17+.
 
