@@ -1,0 +1,33 @@
+plugins {
+	alias(libs.plugins.spotless) apply false
+}
+
+allprojects {
+	repositories {
+		mavenCentral()
+	}
+
+	apply plugin: 'com.diffplug.spotless'
+
+	spotless {
+		java {
+			target 'src/*/java/**/*.java'
+			googleJavaFormat('1.19.2')
+			removeUnusedImports()
+			trimTrailingWhitespace()
+			endWithNewline()
+		}
+		groovyGradle {
+			target '*.gradle'
+			greclipse()
+			trimTrailingWhitespace()
+			endWithNewline()
+		}
+		groovy {
+			target 'src/*/groovy/**/*.groovy'
+			greclipse()
+			trimTrailingWhitespace()
+			endWithNewline()
+		}
+	}
+}

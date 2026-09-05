@@ -1,0 +1,78 @@
+plugins {
+	id 'application'
+	id 'jacoco'
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+}
+
+testing {
+	suites {
+		test {
+			useJUnitJupiter(libs.versions.junitJupiter.get())
+		}
+	}
+}
+
+jacoco {
+	toolVersion = "0.8.15"
+}
+
+jacocoTestReport {
+	reports {
+		xml.required = true
+		html.required = true
+	}
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: [
+				'**/App.class',
+				'**/Util.class'
+			])
+		}))
+	}
+}
+
+jacocoTestCoverageVerification {
+	violationRules {
+		rule {
+			limit {
+				minimum = 0.90
+			}
+		}
+	}
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: [
+				'**/App.class',
+				'**/Util.class'
+			])
+		}))
+	}
+}
+
+tasks.named("test", Test){
+	finalizedBy jacocoTestReport, jacocoTestCoverageVerification
+}
+
+tasks.named("check") {
+	dependsOn jacocoTestCoverageVerification
+}
+
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+group = 'io.github.johnsobrepena.ideasparx'
+version = '1.0.0'
+
+application {
+	mainClass = 'io.github.johnsobrepena.ideasparx.App'
+}
