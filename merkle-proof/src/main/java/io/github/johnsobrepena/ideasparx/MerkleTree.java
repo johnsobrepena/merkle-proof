@@ -152,18 +152,35 @@ public final class MerkleTree {
    * @return Unmodifiable list of Proof instances.
    */
   public List<Proof> getProofs() {
-    return this.seededLeaves.stream().map(leaf -> new Proof(leaf, getProof(leaf.data))).toList();
+    return this.seededLeaves.stream()
+        .map(leaf -> new Proof(leaf, getSiblingHashes(leaf.data())))
+        .toList();
   }
 
   /**
-   * Get proof path for specific leaf payload. O(1) lookup.
+   * Get proof record (Leaf + sibling hashes) for specific leaf payload. O(1) lookup.
+   *
+   * @param leafData Raw leaf payload bytes to search.
+   * @return Proof instance containing Leaf and list of sibling hashes.
+   * @throws IllegalArgumentException If leafData is null or empty.
+   * @throws NoSuchElementException If leafData not found in tree.
+   */
+  public Proof getProof(byte[] leafData) {
+    List<byte[]> siblingHashes = getSiblingHashes(leafData);
+    Integer leafIndex = leafIndexMap.get(ByteBuffer.wrap(leafData));
+    Leaf leaf = seededLeaves.get(leafIndex);
+    return new Proof(leaf, siblingHashes);
+  }
+
+  /**
+   * Get sibling hashes audit path for specific leaf payload. O(1) lookup.
    *
    * @param leafData Raw leaf payload bytes to search.
    * @return Unmodifiable list of 32-byte sibling hashes.
    * @throws IllegalArgumentException If leafData is null or empty.
    * @throws NoSuchElementException If leafData not found in tree.
    */
-  public List<byte[]> getProof(byte[] leafData) {
+  public List<byte[]> getSiblingHashes(byte[] leafData) {
     if (leafData == null || leafData.length == 0) {
       throw new IllegalArgumentException("leafData must not be null nor empty");
     }

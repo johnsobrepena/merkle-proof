@@ -57,13 +57,10 @@ public class UsageExample {
     MerkleTree merkleTree = new MerkleTree(whitelistMembers);
     byte[] publicRootHash = merkleTree.getRoot();
 
-    // Prover extracts Charlie's proof path and salted leaf
-    List<byte[]> charlieProofPath = merkleTree.getProof(charlieData);
-    MerkleTree.Leaf charlieLeaf = merkleTree.getProofs().stream()
-        .map(MerkleTree.Proof::leaf)
-        .filter(l -> Arrays.equals(l.data(), charlieData))
-        .findFirst()
-        .orElseThrow();
+    // Prover extracts Charlie's proof record (including salt seed) and audit path
+    MerkleTree.Proof charlieProof = merkleTree.getProof(charlieData);
+    List<byte[]> charlieProofPath = charlieProof.siblingHashes();
+    MerkleTree.Leaf charlieLeaf = charlieProof.leaf();
 
     // Verifier receives ONLY (charlieData, charlieSeed, publicRootHash, charlieProofPath)
     // Verifier NEVER learns the identity of Alice, Bob, David, or Eve!
@@ -88,7 +85,8 @@ public class UsageExample {
 - `MerkleTree(Set<byte[]> leaves, int targetProofDepth, boolean useSecureSeed)`: Custom constructor with target proof depth padding option.
 - `getRoot()`: Returns a cloned 32-byte array of the root hash.
 - `getProofs()`: Returns an unmodifiable list of `Proof(Leaf leaf, List<byte[]> siblingHashes)` records for all leaves.
-- `getProof(byte[] leafData)`: $O(1)$ fast lookup returning the unmodifiable list of 32-byte sibling hashes along the proof path.
+- `getProof(byte[] leafData)`: $O(1)$ fast lookup returning the `Proof` record containing the `Leaf` (with salt seed and leaf data) and its `siblingHashes`.
+- `getSiblingHashes(byte[] leafData)`: $O(1)$ fast lookup returning the unmodifiable list of 32-byte sibling hashes along the proof path.
 - `verifyProof(byte[] leafData, byte[] seedData, byte[] rootHash, List<byte[]> proof)`: Static utility verifying proof path validity against root hash.
 
 ---

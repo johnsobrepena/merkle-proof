@@ -135,15 +135,34 @@ class MerkleTreeTest {
 
     @Test
     @DisplayName(
-        "Given valid leaf data payload, when calling getProof, then return matching proof path")
-    void givenValidLeafData_whenGettingProof_thenReturnMatchingProofPath() {
+        "Given valid leaf data payload, when calling getProof, then return matching Proof record")
+    void givenValidLeafData_whenGettingProof_thenReturnMatchingProofRecord() {
       Set<byte[]> leaves = Util.getRandomIDs(5);
       MerkleTree tree = new MerkleTree(leaves);
 
       byte[] targetData = leaves.iterator().next();
 
-      List<byte[]> proofPath = tree.getProof(targetData);
-      assertNotNull(proofPath);
+      MerkleTree.Proof proof = tree.getProof(targetData);
+      assertNotNull(proof);
+      assertArrayEquals(targetData, proof.leaf().data());
+
+      boolean verified =
+          MerkleTree.verifyProof(
+              proof.leaf().data(), proof.leaf().seed(), tree.getRoot(), proof.siblingHashes());
+      assertTrue(verified, "getProof(targetData) returned invalid proof object");
+    }
+
+    @Test
+    @DisplayName(
+        "Given valid leaf data payload, when calling getSiblingHashes, then return matching proof path")
+    void givenValidLeafData_whenGettingSiblingHashes_thenReturnMatchingProofPath() {
+      Set<byte[]> leaves = Util.getRandomIDs(5);
+      MerkleTree tree = new MerkleTree(leaves);
+
+      byte[] targetData = leaves.iterator().next();
+
+      List<byte[]> siblingHashes = tree.getSiblingHashes(targetData);
+      assertNotNull(siblingHashes);
 
       MerkleTree.Leaf matchingLeaf =
           tree.getProofs().stream()
@@ -153,30 +172,35 @@ class MerkleTreeTest {
               .orElseThrow();
 
       boolean verified =
-          MerkleTree.verifyProof(targetData, matchingLeaf.seed(), tree.getRoot(), proofPath);
-      assertTrue(verified, "getProof(targetData) returned invalid proof path");
+          MerkleTree.verifyProof(targetData, matchingLeaf.seed(), tree.getRoot(), siblingHashes);
+      assertTrue(verified, "getSiblingHashes(targetData) returned invalid sibling hashes path");
     }
 
     @Test
     @DisplayName(
-        "Given non-existent leaf data payload, when calling getProof, then throw NoSuchElementException")
-    void givenNonExistentLeafData_whenGettingProof_thenThrowNoSuchElementException() {
+        "Given non-existent leaf data payload, when calling getProof or getSiblingHashes, then throw NoSuchElementException")
+    void
+        givenNonExistentLeafData_whenGettingProofOrSiblingHashes_thenThrowNoSuchElementException() {
       Set<byte[]> leaves = Set.of(Util.generateID(32), Util.generateID(32));
       MerkleTree tree = new MerkleTree(leaves);
 
       byte[] unknownData = Util.generateID(32);
       assertThrows(NoSuchElementException.class, () -> tree.getProof(unknownData));
+      assertThrows(NoSuchElementException.class, () -> tree.getSiblingHashes(unknownData));
     }
 
     @Test
     @DisplayName(
-        "Given null or empty payload, when calling getProof, then throw IllegalArgumentException")
-    void givenNullOrEmptyPayload_whenGettingProof_thenThrowIllegalArgumentException() {
+        "Given null or empty payload, when calling getProof or getSiblingHashes, then throw IllegalArgumentException")
+    void
+        givenNullOrEmptyPayload_whenGettingProofOrSiblingHashes_thenThrowIllegalArgumentException() {
       Set<byte[]> leaves = Set.of(Util.generateID(32));
       MerkleTree tree = new MerkleTree(leaves);
 
       assertThrows(IllegalArgumentException.class, () -> tree.getProof(null));
       assertThrows(IllegalArgumentException.class, () -> tree.getProof(new byte[0]));
+      assertThrows(IllegalArgumentException.class, () -> tree.getSiblingHashes(null));
+      assertThrows(IllegalArgumentException.class, () -> tree.getSiblingHashes(new byte[0]));
     }
   }
 

@@ -5,7 +5,6 @@
 package io.github.johnsobrepena.ideasparx;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -48,13 +47,9 @@ public class App {
     System.out.println("Total Authorized Whitelist Members : " + authorizedMembers.size());
     System.out.println("Published Public Merkle Root Hash  : 0x" + toHex(publicRootHash));
 
-    // Prover extracts a specific proof for Charlie
-    List<byte[]> charlieProofPath = merkleTree.getProof(charlieData);
-    MerkleTree.Proof charlieProof =
-        merkleTree.getProofs().stream()
-            .filter(p -> Arrays.equals(p.leaf().data(), charlieData))
-            .findFirst()
-            .orElseThrow();
+    // Prover extracts Charlie's proof record (including salt seed) and audit path
+    MerkleTree.Proof charlieProof = merkleTree.getProof(charlieData);
+    List<byte[]> charlieProofPath = charlieProof.siblingHashes();
 
     System.out.println("\n[STEP 2: Prover Generating Private Proof for 'Charlie']");
     System.out.println(
