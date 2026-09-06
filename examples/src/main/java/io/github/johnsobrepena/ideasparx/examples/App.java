@@ -2,8 +2,9 @@
  * Copyright (c) 2026 John Eric Sobrepena
  * SPDX-License-Identifier: MIT
  */
-package io.github.johnsobrepena.ideasparx;
+package io.github.johnsobrepena.ideasparx.examples;
 
+import io.github.johnsobrepena.ideasparx.MerkleTree;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import java.util.LinkedHashSet;

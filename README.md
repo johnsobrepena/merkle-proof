@@ -101,9 +101,12 @@ Run full unit tests, Spotless code formatting checks, and JaCoCo >90% code cover
 # Run unit tests & code quality checks
 ./gradlew check
 
-# Run the interactive membership proof demo
+# Run the interactive membership proof demo (located in ./examples)
 ./gradlew run
+# Or run specifically via the examples subproject task
+./gradlew :examples:run
 ```
+
 
 ---
 

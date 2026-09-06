@@ -31,3 +31,9 @@ allprojects {
 		}
 	}
 }
+
+tasks.register('run') {
+	dependsOn ':examples:run'
+	description = 'Runs the example application.'
+	group = 'application'
+}

@@ -6,6 +6,7 @@ package io.github.johnsobrepena.ideasparx;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.security.SecureRandom;
 import java.util.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -64,7 +65,7 @@ class MerkleTreeTest {
     @DisplayName(
         "Given a single leaf, when building tree and verifying proof, then verification succeeds")
     void givenSingleLeaf_whenBuildingTreeAndVerifyingProof_thenVerificationSucceeds() {
-      byte[] leafData = Util.generateID(32);
+      byte[] leafData = generateID(32);
       Set<byte[]> leaves = Set.of(leafData);
 
       MerkleTree tree = new MerkleTree(leaves, 10, true);
@@ -91,7 +92,7 @@ class MerkleTreeTest {
         "Given leaf set sizes (N=1..100), when building tree and verifying proofs, then all proofs verify successfully")
     void givenVariousLeafSetSizes_whenBuildingTreeAndVerifyingProofs_thenAllProofsVerify(
         int count) {
-      Set<byte[]> leaves = Util.getRandomIDs(count);
+      Set<byte[]> leaves = getRandomIDs(count);
 
       MerkleTree tree = new MerkleTree(leaves, 10, true);
       byte[] root = tree.getRoot();
@@ -111,7 +112,7 @@ class MerkleTreeTest {
     @DisplayName(
         "Given non-secure seed flag set to false, when building tree, then leaf seeds are empty and proofs verify successfully")
     void givenNonSecureSeedFlag_whenBuildingTree_thenSeedsAreEmptyAndProofsVerify() {
-      Set<byte[]> leaves = Util.getRandomIDs(10);
+      Set<byte[]> leaves = getRandomIDs(10);
 
       MerkleTree tree = new MerkleTree(leaves, 10, false);
       byte[] root = tree.getRoot();
@@ -137,7 +138,7 @@ class MerkleTreeTest {
     @DisplayName(
         "Given valid leaf data payload, when calling getProof, then return matching Proof record")
     void givenValidLeafData_whenGettingProof_thenReturnMatchingProofRecord() {
-      Set<byte[]> leaves = Util.getRandomIDs(5);
+      Set<byte[]> leaves = getRandomIDs(5);
       MerkleTree tree = new MerkleTree(leaves);
 
       byte[] targetData = leaves.iterator().next();
@@ -156,7 +157,7 @@ class MerkleTreeTest {
     @DisplayName(
         "Given valid leaf data payload, when calling getSiblingHashes, then return matching proof path")
     void givenValidLeafData_whenGettingSiblingHashes_thenReturnMatchingProofPath() {
-      Set<byte[]> leaves = Util.getRandomIDs(5);
+      Set<byte[]> leaves = getRandomIDs(5);
       MerkleTree tree = new MerkleTree(leaves);
 
       byte[] targetData = leaves.iterator().next();
@@ -181,10 +182,10 @@ class MerkleTreeTest {
         "Given non-existent leaf data payload, when calling getProof or getSiblingHashes, then throw NoSuchElementException")
     void
         givenNonExistentLeafData_whenGettingProofOrSiblingHashes_thenThrowNoSuchElementException() {
-      Set<byte[]> leaves = Set.of(Util.generateID(32), Util.generateID(32));
+      Set<byte[]> leaves = Set.of(generateID(32), generateID(32));
       MerkleTree tree = new MerkleTree(leaves);
 
-      byte[] unknownData = Util.generateID(32);
+      byte[] unknownData = generateID(32);
       assertThrows(NoSuchElementException.class, () -> tree.getProof(unknownData));
       assertThrows(NoSuchElementException.class, () -> tree.getSiblingHashes(unknownData));
     }
@@ -194,7 +195,8 @@ class MerkleTreeTest {
         "Given null or empty payload, when calling getProof or getSiblingHashes, then throw IllegalArgumentException")
     void
         givenNullOrEmptyPayload_whenGettingProofOrSiblingHashes_thenThrowIllegalArgumentException() {
-      Set<byte[]> leaves = Set.of(Util.generateID(32));
+      Set<byte[]> leaves = Set.of(generateID(32));
+
       MerkleTree tree = new MerkleTree(leaves);
 
       assertThrows(IllegalArgumentException.class, () -> tree.getProof(null));
@@ -211,7 +213,7 @@ class MerkleTreeTest {
     @Test
     @DisplayName("Given tampered leaf data, when verifying proof, then return false")
     void givenTamperedLeafData_whenVerifyingProof_thenReturnFalse() {
-      Set<byte[]> leaves = Util.getRandomIDs(4);
+      Set<byte[]> leaves = getRandomIDs(4);
       MerkleTree tree = new MerkleTree(leaves);
 
       MerkleTree.Proof proof = tree.getProofs().get(0);
@@ -227,7 +229,7 @@ class MerkleTreeTest {
     @Test
     @DisplayName("Given tampered seed data, when verifying proof, then return false")
     void givenTamperedSeedData_whenVerifyingProof_thenReturnFalse() {
-      Set<byte[]> leaves = Util.getRandomIDs(4);
+      Set<byte[]> leaves = getRandomIDs(4);
       MerkleTree tree = new MerkleTree(leaves);
 
       MerkleTree.Proof proof = tree.getProofs().get(0);
@@ -245,7 +247,7 @@ class MerkleTreeTest {
     @Test
     @DisplayName("Given tampered root hash, when verifying proof, then return false")
     void givenTamperedRootHash_whenVerifyingProof_thenReturnFalse() {
-      Set<byte[]> leaves = Util.getRandomIDs(4);
+      Set<byte[]> leaves = getRandomIDs(4);
       MerkleTree tree = new MerkleTree(leaves);
 
       MerkleTree.Proof proof = tree.getProofs().get(0);
@@ -261,7 +263,7 @@ class MerkleTreeTest {
     @Test
     @DisplayName("Given tampered proof node, when verifying proof, then return false")
     void givenTamperedProofNode_whenVerifyingProof_thenReturnFalse() {
-      Set<byte[]> leaves = Util.getRandomIDs(4);
+      Set<byte[]> leaves = getRandomIDs(4);
       MerkleTree tree = new MerkleTree(leaves);
 
       MerkleTree.Proof proof = tree.getProofs().get(0);
@@ -285,7 +287,7 @@ class MerkleTreeTest {
     @DisplayName(
         "Given tree root, when mutating returned root array, then internal root hash remains unchanged")
     void givenTreeRoot_whenMutatingReturnedRootArray_thenInternalRootHashIsUnchanged() {
-      MerkleTree tree = new MerkleTree(Set.of(Util.generateID(32)));
+      MerkleTree tree = new MerkleTree(Set.of(generateID(32)));
       byte[] root1 = tree.getRoot();
       byte[] root2 = tree.getRoot();
 
@@ -297,5 +299,21 @@ class MerkleTreeTest {
           Arrays.equals(root1, tree.getRoot()),
           "Mutating getRoot() return should not alter internal root");
     }
+  }
+
+  private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
+  private static byte[] generateID(int length) {
+    byte[] bytes = new byte[length];
+    SECURE_RANDOM.nextBytes(bytes);
+    return bytes;
+  }
+
+  private static Set<byte[]> getRandomIDs(int count) {
+    Set<byte[]> members = new LinkedHashSet<>();
+    for (int i = 0; i < count; i++) {
+      members.add(generateID(32));
+    }
+    return members;
   }
 }

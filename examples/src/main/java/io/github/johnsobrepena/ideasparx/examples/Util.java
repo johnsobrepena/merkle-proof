@@ -2,14 +2,14 @@
  * Copyright (c) 2026 John Eric Sobrepena
  * SPDX-License-Identifier: MIT
  */
-package io.github.johnsobrepena.ideasparx;
+package io.github.johnsobrepena.ideasparx.examples;
 
 import java.security.SecureRandom;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-public class Util {
-  private static SecureRandom secRandom = new SecureRandom();
+public final class Util {
+  private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
   private Util() {
     throw new AssertionError("Utility class");
@@ -17,7 +17,7 @@ public class Util {
 
   public static byte[] generateID(int length) {
     var secureBytes = new byte[length];
-    secRandom.nextBytes(secureBytes);
+    SECURE_RANDOM.nextBytes(secureBytes);
     return secureBytes;
   }
 

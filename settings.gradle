@@ -13,3 +13,4 @@ plugins {
 
 rootProject.name = 'merkle-proof'
 include('merkle-proof')
+include('examples')

@@ -1,0 +1,24 @@
+plugins {
+	id 'application'
+}
+
+group = 'io.github.johnsobrepena.ideasparx'
+version = '1.0.0'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation project(':merkle-proof')
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+application {
+	mainClass = 'io.github.johnsobrepena.ideasparx.examples.App'
+}
