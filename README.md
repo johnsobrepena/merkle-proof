@@ -11,11 +11,13 @@ High-performance, thread-safe, privacy-preserving Merkle Tree implementation in 
 
 ## Key Features
 
-- **$O(1)$ Proof Lookup**: Instant proof retrieval via internal byte-buffer indexing.
-- **Salted Leaf Payloads**: Random 32-byte salt seeds per leaf to guard against rainbow table pre-image attacks.
-- **Set Uniqueness**: Strict content-based uniqueness validation on leaf inputs.
-- **Thread-Safe & Immutable**: Internal tree state is immutable after construction; safe for multi-threaded concurrent queries.
-- **Zero-Copy & Low GC Pressure**: Optimized memory layout designed for high-throughput microservices.
+- **Zero External Runtime Dependencies**: Built entirely with pure Java 17 standard library components (`java.security.MessageDigest`, `java.security.SecureRandom`). Zero third-party runtime bloat, zero supply-chain attack vector.
+- **Salted Leaf Security (Anti-Rainbow Table Defense)**: Assigns a 32-byte `SecureRandom` salt seed per leaf, preventing pre-image rainbow table and dictionary brute-force attacks on low-entropy leaf data (such as emails or user IDs).
+- **Canonical Sorted-Pair Hashing**: Lexicographically sorts child node pairs before SHA-256 hashing (`Arrays.compare`), eliminating sibling ordering ambiguity and defending against second pre-image vulnerabilities.
+- **$O(1)$ Instant Proof Lookups**: Internal `Map<ByteBuffer, Integer>` indexing allows constant-time proof path retrieval by leaf payload without $O(N)$ tree scanning.
+- **Side-Channel Anonymity via Depth Padding**: Optional `targetProofDepth` pads audit paths with secure dummy hashes to uniform lengths, hiding tree scale and leaf index from proof verifiers.
+- **Strict Byte-Content Set Uniqueness**: Enforces content-level deduplication (`ByteBuffer.wrap()`) rather than object reference checks to guarantee tree integrity.
+- **Thread-Safe & Immutable Architecture**: Powered by Java 17 `record` types (`Leaf`, `Proof`), defensive array cloning, and unmodifiable collection wrappers for safe multi-threaded concurrency without lock contention.
 
 ---
 
