@@ -6,6 +6,7 @@ package io.github.johnsobrepena.ideasparx;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.*;
 import org.junit.jupiter.api.DisplayName;
@@ -203,6 +204,50 @@ class MerkleTreeTest {
       assertThrows(IllegalArgumentException.class, () -> tree.getProof(new byte[0]));
       assertThrows(IllegalArgumentException.class, () -> tree.getSiblingHashes(null));
       assertThrows(IllegalArgumentException.class, () -> tree.getSiblingHashes(new byte[0]));
+    }
+
+    @Test
+    @DisplayName(
+        "Given valid tree, when calling getProofsAsMap, then return all valid proof mappings")
+    void givenValidTree_whenGettingProofsAsMap_thenReturnAllValidProofMappings() {
+      Set<byte[]> leaves = getRandomIDs(5);
+      MerkleTree tree = new MerkleTree(leaves);
+
+      Map<ByteBuffer, MerkleTree.Proof> proofsMap = tree.getProofsAsMap();
+      assertEquals(5, proofsMap.size());
+
+      for (byte[] leafData : leaves) {
+        MerkleTree.Proof proof = proofsMap.get(ByteBuffer.wrap(leafData));
+        assertNotNull(proof);
+        assertArrayEquals(leafData, proof.leaf().data());
+
+        boolean verified =
+            MerkleTree.verifyProof(
+                proof.leaf().data(), proof.leaf().seed(), tree.getRoot(), proof.siblingHashes());
+        assertTrue(verified);
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "Given non-secure seed tree, when calling getProofsAsMap, then return full map without key collision")
+    void givenNonSecureSeedTree_whenGettingProofsAsMap_thenReturnFullMapWithoutCollision() {
+      Set<byte[]> leaves = getRandomIDs(5);
+      MerkleTree tree = new MerkleTree(leaves, 0, false);
+
+      Map<ByteBuffer, MerkleTree.Proof> proofsMap = tree.getProofsAsMap();
+      assertEquals(
+          5, proofsMap.size(), "Map size must equal total leaf count when useSecureSeed is false");
+    }
+
+    @Test
+    @DisplayName(
+        "Given returned proofs map, when attempting mutation, then throw UnsupportedOperationException")
+    void givenReturnedProofsMap_whenAttemptingMutation_thenThrowUnsupportedOperationException() {
+      MerkleTree tree = new MerkleTree(getRandomIDs(3));
+      Map<ByteBuffer, MerkleTree.Proof> proofsMap = tree.getProofsAsMap();
+
+      assertThrows(UnsupportedOperationException.class, () -> proofsMap.clear());
     }
   }
 

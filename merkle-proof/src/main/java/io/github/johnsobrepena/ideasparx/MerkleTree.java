@@ -158,6 +158,19 @@ public final class MerkleTree {
   }
 
   /**
+   * Get map of leaf payload ByteBuffer to Proof instances for fast bulk lookup.
+   *
+   * @return Unmodifiable map mapping leaf payload ByteBuffer to Proof records.
+   */
+  public Map<ByteBuffer, Proof> getProofsAsMap() {
+    Map<ByteBuffer, Proof> proofs = new HashMap<>(this.seededLeaves.size());
+    for (var leaf : this.seededLeaves) {
+      proofs.put(ByteBuffer.wrap(leaf.data()), new Proof(leaf, getSiblingHashes(leaf.data())));
+    }
+    return Collections.unmodifiableMap(proofs);
+  }
+
+  /**
    * Get proof record (Leaf + sibling hashes) for specific leaf payload. O(1) lookup.
    *
    * @param leafData Raw leaf payload bytes to search.
