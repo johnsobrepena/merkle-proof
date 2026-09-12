@@ -55,6 +55,33 @@ class MerkleTreeTest {
       assertEquals(2, leaves.size(), "Set should contain both array instances");
       assertThrows(IllegalArgumentException.class, () -> new MerkleTree(leaves));
     }
+
+    @Test
+    @DisplayName(
+        "Given empty leaf element, when constructing tree, then throw IllegalArgumentException")
+    void givenEmptyLeafElement_whenConstructingTree_thenThrowIllegalArgumentException() {
+      Set<byte[]> leaves = new HashSet<>();
+      leaves.add(new byte[0]);
+
+      assertThrows(IllegalArgumentException.class, () -> new MerkleTree(leaves));
+    }
+
+    @Test
+    @DisplayName(
+        "Given negative target proof depth, when constructing tree, then throw IllegalArgumentException")
+    void givenNegativeTargetProofDepth_whenConstructingTree_thenThrowIllegalArgumentException() {
+      Set<byte[]> leaves = Set.of(generateID(32));
+      assertThrows(IllegalArgumentException.class, () -> new MerkleTree(leaves, -1, true));
+    }
+
+    @Test
+    @DisplayName(
+        "Given target proof depth exceeding allowed maximum, when constructing tree, then throw IllegalArgumentException")
+    void
+        givenTargetProofDepthExceedingMax_whenConstructingTree_thenThrowIllegalArgumentException() {
+      Set<byte[]> leaves = Set.of(generateID(32));
+      assertThrows(IllegalArgumentException.class, () -> new MerkleTree(leaves, 21, true));
+    }
   }
 
   @Nested
@@ -320,6 +347,124 @@ class MerkleTreeTest {
           MerkleTree.verifyProof(
               proof.leaf().data(), proof.leaf().seed(), tree.getRoot(), tamperedSiblingHashes);
       assertFalse(verified, "Tampered proof node should fail verification");
+    }
+
+    @Test
+    @DisplayName(
+        "Given null or empty arguments, when verifying proof, then throw expected exceptions")
+    void givenNullOrEmptyArguments_whenVerifyingProof_thenThrowExpectedExceptions() {
+      byte[] leaf = generateID(32);
+      byte[] seed = generateID(32);
+      byte[] root = generateID(32);
+      List<byte[]> proof = List.of(generateID(32));
+
+      assertThrows(
+          IllegalArgumentException.class, () -> MerkleTree.verifyProof(null, seed, root, proof));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> MerkleTree.verifyProof(new byte[0], seed, root, proof));
+      assertThrows(
+          IllegalArgumentException.class, () -> MerkleTree.verifyProof(leaf, seed, null, proof));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> MerkleTree.verifyProof(leaf, seed, new byte[0], proof));
+      assertThrows(
+          NullPointerException.class, () -> MerkleTree.verifyProof(leaf, null, root, proof));
+      assertThrows(
+          NullPointerException.class, () -> MerkleTree.verifyProof(leaf, seed, root, null));
+    }
+
+    @Test
+    @DisplayName(
+        "Given proof exceeding allowed maximum depth, when verifying proof, then throw IllegalArgumentException")
+    void givenProofExceedingMaxDepth_whenVerifyingProof_thenThrowIllegalArgumentException() {
+      byte[] leaf = generateID(32);
+      byte[] seed = generateID(32);
+      byte[] root = generateID(32);
+
+      List<byte[]> excessiveProof = new ArrayList<>();
+      for (int i = 0; i < 21; i++) {
+        excessiveProof.add(generateID(32));
+      }
+
+      var ex =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> MerkleTree.verifyProof(leaf, seed, root, excessiveProof));
+      assertTrue(ex.getMessage().contains("allowed maximum proof depth of 20"));
+    }
+
+    @Test
+    @DisplayName(
+        "Given proof with null or non-32-byte elements, when verifying proof, then throw IllegalArgumentException")
+    void
+        givenProofWithNullOrNon32ByteElements_whenVerifyingProof_thenThrowIllegalArgumentException() {
+      byte[] leaf = generateID(32);
+      byte[] seed = generateID(32);
+      byte[] root = generateID(32);
+
+      List<byte[]> proofWithNull = Collections.singletonList(null);
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> MerkleTree.verifyProof(leaf, seed, root, proofWithNull));
+
+      List<byte[]> proofWithShortHash = List.of(new byte[16]);
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> MerkleTree.verifyProof(leaf, seed, root, proofWithShortHash));
+
+      List<byte[]> proofWithLongHash = List.of(new byte[64]);
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> MerkleTree.verifyProof(leaf, seed, root, proofWithLongHash));
+    }
+
+    @Test
+    @DisplayName(
+        "Given intermediate internal node replayed as leaf, when verifying proof, then verification fails")
+    void givenInternalNodeReplay_whenVerifyingProof_thenReturnFalse() {
+      Set<byte[]> leaves = getRandomIDs(4);
+      MerkleTree tree = new MerkleTree(leaves);
+
+      MerkleTree.Proof proof = tree.getProofs().get(0);
+      List<byte[]> siblingHashes = proof.siblingHashes();
+      assertTrue(siblingHashes.size() >= 2, "Tree with 4 leaves should have at least 2 layers");
+
+      byte[] forgedLeafData = siblingHashes.get(0);
+      byte[] forgedSeedData = generateID(32);
+      List<byte[]> truncatedPath = siblingHashes.subList(1, siblingHashes.size());
+
+      boolean verified =
+          MerkleTree.verifyProof(forgedLeafData, forgedSeedData, tree.getRoot(), truncatedPath);
+      assertFalse(
+          verified,
+          "Domain separation (0x00 vs 0x01) must prevent intermediate nodes from verifying as leaves");
+    }
+
+    @Test
+    @DisplayName(
+        "Given concatenation forgery attempt on non-secure seed tree, when verifying proof, then verification fails")
+    void givenConcatenationForgery_whenVerifyingProof_thenReturnFalse() {
+      Set<byte[]> leaves = getRandomIDs(4);
+      MerkleTree tree = new MerkleTree(leaves, 0, false);
+
+      MerkleTree.Proof proof = tree.getProofs().get(0);
+      List<byte[]> siblingHashes = proof.siblingHashes();
+      assertTrue(siblingHashes.size() >= 2);
+
+      byte[] combinedPayload = new byte[64];
+      System.arraycopy(
+          proof.leaf().data(), 0, combinedPayload, 0, Math.min(32, proof.leaf().data().length));
+      System.arraycopy(siblingHashes.get(0), 0, combinedPayload, 32, 32);
+
+      boolean verified =
+          MerkleTree.verifyProof(
+              combinedPayload,
+              new byte[0],
+              tree.getRoot(),
+              siblingHashes.subList(1, siblingHashes.size()));
+      assertFalse(
+          verified, "Domain separation and length prefixing must prevent concatenation forgery");
     }
   }
 
