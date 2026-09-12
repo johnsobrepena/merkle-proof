@@ -8,14 +8,7 @@ import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Merkle Tree with salted leaves and optional depth padding. Thread-safe. Immutable after
@@ -26,6 +19,7 @@ public final class MerkleTree {
   private static final int SEED_NUM_BYTES = 32;
   private static final int PADDING_ELEM_NUM_BYTES = 32;
   private static final int DEFAULT_MIN_PROOF_DEPTH = 0;
+  private static final int ALLOWED_MAX_PROOF_DEPTH = 20;
   private final int targetProofDepth;
   private final boolean useSecureSeed;
 
@@ -77,6 +71,9 @@ public final class MerkleTree {
     if (leaves == null || leaves.isEmpty()) {
       throw new IllegalArgumentException("Leaves must not be null or empty");
     }
+    if (targetProofDepth < 0) {
+      throw new IllegalArgumentException("Target proof depth must not be negative");
+    }
     this.proofPaddings = new ArrayList<>();
     this.targetProofDepth = targetProofDepth;
     this.useSecureSeed = useSecureSeed;
@@ -87,9 +84,7 @@ public final class MerkleTree {
 
     int index = 0;
     for (var leafData : leaves) {
-      if (leafData == null) {
-        throw new IllegalArgumentException("Leaf data element must not be null");
-      }
+      requireNonNullAndNonEmptyBytes(leafData, "leaf data must not be null nor empty");
       if (indexMap.putIfAbsent(ByteBuffer.wrap(leafData), index++) != null) {
         throw new IllegalArgumentException(
             "Duplicate leaf content detected. Leaves must be unique.");
@@ -108,7 +103,7 @@ public final class MerkleTree {
 
   private void initializeTree() {
     var nodes =
-        this.seededLeaves.stream().map(leaf -> computePairHash(leaf.seed, leaf.data)).toList();
+        this.seededLeaves.stream().map(leaf -> computeLeafHash(leaf.seed, leaf.data)).toList();
 
     layers.add(nodes);
 
@@ -179,6 +174,7 @@ public final class MerkleTree {
    * @throws NoSuchElementException If leafData not found in tree.
    */
   public Proof getProof(byte[] leafData) {
+    requireNonNullAndNonEmptyBytes(leafData, "leafData must not be null nor empty");
     List<byte[]> siblingHashes = getSiblingHashes(leafData);
     Integer leafIndex = leafIndexMap.get(ByteBuffer.wrap(leafData));
     Leaf leaf = seededLeaves.get(leafIndex);
@@ -194,9 +190,7 @@ public final class MerkleTree {
    * @throws NoSuchElementException If leafData not found in tree.
    */
   public List<byte[]> getSiblingHashes(byte[] leafData) {
-    if (leafData == null || leafData.length == 0) {
-      throw new IllegalArgumentException("leafData must not be null nor empty");
-    }
+    requireNonNullAndNonEmptyBytes(leafData, "leafData must not be null nor empty");
     Integer leafIndex = leafIndexMap.get(ByteBuffer.wrap(leafData));
     if (leafIndex == null) {
       throw new NoSuchElementException("Leaf data not found in Merkle Tree");
@@ -231,20 +225,31 @@ public final class MerkleTree {
   }
 
   private static byte[] computePairHash(byte[] input1, byte[] input2) {
-    try {
-      byte[] left, right;
-      if (Arrays.compare(input1, input2) > 0) {
-        left = input2;
-        right = input1;
-      } else {
-        left = input1;
-        right = input2;
-      }
+    byte[] left, right;
+    if (Arrays.compare(input1, input2) > 0) {
+      left = input2;
+      right = input1;
+    } else {
+      left = input1;
+      right = input2;
+    }
 
-      MessageDigest md = MessageDigest.getInstance("SHA-256");
-      md.update(left);
-      md.update(right);
-      return md.digest();
+    MessageDigest md = newDigest();
+    md.update(left);
+    md.update(right);
+    return md.digest();
+  }
+
+  private static byte[] computeLeafHash(byte[] seed, byte[] leafData) {
+    var md = newDigest();
+    var buffer = ByteBuffer.allocate((2 * Integer.BYTES) + seed.length + leafData.length);
+    buffer.putInt(seed.length).put(seed).putInt(leafData.length).put(leafData);
+    return md.digest(buffer.array());
+  }
+
+  private static MessageDigest newDigest() {
+    try {
+      return MessageDigest.getInstance("SHA-256");
     } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException("SHA-256 unavailable", e);
     }
@@ -274,10 +279,34 @@ public final class MerkleTree {
    */
   public static boolean verifyProof(
       byte[] leafData, byte[] seedData, byte[] rootHash, List<byte[]> proof) {
-    var hash = computePairHash(leafData, seedData);
+    requireNonNullAndNonEmptyBytes(leafData, "leafData must not be null nor empty");
+    requireNonNullAndNonEmptyBytes(rootHash, "rootHash must not be null nor empty");
+    Objects.requireNonNull(seedData, "seedData cannot be null");
+    Objects.requireNonNull(proof, "proof cannot be null");
+    if (proof.size() > ALLOWED_MAX_PROOF_DEPTH) {
+      throw new IllegalArgumentException(
+          "proof cannot have more than allowed maximum proof depth of " + ALLOWED_MAX_PROOF_DEPTH);
+    }
+    validateProofElements(proof);
+
+    var hash = computeLeafHash(seedData, leafData);
     for (var siblingHash : proof) {
       hash = computePairHash(hash, siblingHash);
     }
     return Arrays.equals(rootHash, hash);
+  }
+
+  private static void validateProofElements(List<byte[]> proof) {
+    for (var p : proof) {
+      if (p == null || p.length != PADDING_ELEM_NUM_BYTES) {
+        throw new IllegalArgumentException("Invalid proof element");
+      }
+    }
+  }
+
+  private static void requireNonNullAndNonEmptyBytes(byte[] data, String errorMessage) {
+    if (data == null || data.length == 0) {
+      throw new IllegalArgumentException(errorMessage);
+    }
   }
 }
