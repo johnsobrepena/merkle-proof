@@ -11,13 +11,13 @@ High-performance, thread-safe, privacy-preserving Merkle Tree implementation in 
 
 ## Key Features
 
-- **Zero External Runtime Dependencies**: Built entirely with pure Java 17 standard library components (`java.security.MessageDigest`, `java.security.SecureRandom`). Zero third-party runtime bloat, zero supply-chain attack vector.
-- **Salted Leaf Security (Anti-Rainbow Table Defense)**: Assigns a 32-byte `SecureRandom` salt seed per leaf, preventing pre-image rainbow table and dictionary brute-force attacks on low-entropy leaf data (such as emails or user IDs).
-- **Canonical Sorted-Pair Hashing**: Lexicographically sorts child node pairs before SHA-256 hashing (`Arrays.compare`), eliminating sibling ordering ambiguity and defending against second pre-image vulnerabilities.
-- **$O(1)$ Instant Proof Lookups**: Internal `Map<ByteBuffer, Integer>` indexing allows constant-time proof path retrieval by leaf payload without $O(N)$ tree scanning.
-- **Side-Channel Anonymity via Depth Padding**: Optional `targetProofDepth` pads audit paths with secure dummy hashes to uniform lengths, hiding tree scale and leaf index from proof verifiers.
-- **Strict Byte-Content Set Uniqueness**: Enforces content-level deduplication (`ByteBuffer.wrap()`) rather than object reference checks to guarantee tree integrity.
-- **Thread-Safe & Immutable Architecture**: Powered by Java 17 `record` types (`Leaf`, `Proof`), defensive array cloning, and unmodifiable collection wrappers for safe multi-threaded concurrency without lock contention.
+- **Zero External Runtime Dependencies** - Built entirely with pure Java 17 standard library components (`java.security.MessageDigest`, `java.security.SecureRandom`). Zero third-party runtime bloat, zero supply-chain attack vector.
+- **Salted Leaf Security (Anti-Rainbow Table Defense)** - Assigns a 32-byte `SecureRandom` salt seed per leaf, preventing pre-image rainbow table and dictionary brute-force attacks on low-entropy leaf data (such as emails or user IDs).
+- **Cryptographic Domain Separation & Canonical Hashing** - Prepends domain prefix tags (`0x00` for leaves, `0x01` for internal nodes) and lexicographically sorts child pairs before SHA-256 hashing, eliminating replay and second pre-image vulnerabilities.
+- **$O(1)$ Instant Proof Lookups** - Internal `Map<ByteBuffer, Integer>` indexing allows constant-time proof path retrieval by leaf payload without $O(N)$ tree scanning.
+- **Side-Channel Anonymity via Depth Padding** - Optional `targetProofDepth` (capped at 20) pads audit paths with secure dummy hashes to uniform lengths, hiding tree scale and leaf index from proof verifiers.
+- **Strict Byte-Content Set Uniqueness** - Enforces content-level deduplication (`ByteBuffer.wrap()`) rather than object reference checks to guarantee tree integrity.
+- **Thread-Safe & Zero-Copy Architecture** - Powered by Java 17 `record` types (`Leaf`, `Proof`), unmodifiable collection wrappers, and zero-copy design for safe, low-GC multi-threaded concurrency.
 
 ---
 
@@ -91,6 +91,18 @@ public class UsageExample {
 - `getProof(byte[] leafData)`: $O(1)$ fast lookup returning the `Proof` record containing the `Leaf` (with salt seed and leaf data) and its `siblingHashes`.
 - `getSiblingHashes(byte[] leafData)`: $O(1)$ fast lookup returning the unmodifiable list of 32-byte sibling hashes along the proof path.
 - `verifyProof(byte[] leafData, byte[] seedData, byte[] rootHash, List<byte[]> proof)`: Static utility verifying proof path validity against root hash.
+
+---
+
+## Security Architecture & Design Rationale
+
+This library balances cryptographic security with high-throughput, zero-copy performance:
+
+- **Domain Separation & Length Prefixing** - Leaf hashing prepends `0x00` with explicit length headers (`0x00 || len(seed) || seed || len(data) || data`), while internal nodes prepend `0x01` (`0x01 || left || right`). This mathematically guarantees that internal node hashes cannot be replayed as leaf proofs.
+- **Zero-Copy & Low GC Overhead** - Padding elements and leaf arrays are shared directly without defensive deep-cloning on every retrieval. The library targets high-throughput microservices where allocation pressure degrades latency; callers are expected to treat returned proof byte arrays as read-only.
+- **Lean Records** - `Leaf` and `Proof` records deliberately omit custom `.equals()` and `.hashCode()` overrides to avoid unused boilerplate and code bloat, as internal lookups rely on `ByteBuffer` indexing rather than record hashing.
+- **Fail-Fast Invariant Enforcement** - `verifyProof` enforces strict contract invariants (non-null, exact 32-byte hashes, max depth $\le 20$) and throws `IllegalArgumentException` / `NullPointerException` on violations, rather than returning false and masking caller bugs. Consuming applications remain responsible for application-level DoS protection.
+- **Depth Padding Scope** - Optional `targetProofDepth` (capped at 20) hides tree scale and leaf position from an isolated verifier. Because padding is applied at the tree root, colluding verifiers comparing proofs can observe matching trailing dummy hashes.
 
 ---
 
