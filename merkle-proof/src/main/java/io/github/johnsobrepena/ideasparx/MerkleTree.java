@@ -20,8 +20,9 @@ public final class MerkleTree {
   private static final byte INTERNAL_PREFIX = (byte) 0x01;
   private static final int SEED_NUM_BYTES = 32;
   private static final int PADDING_ELEM_NUM_BYTES = 32;
-  private static final int DEFAULT_MIN_PROOF_DEPTH = 0;
+  private static final int DEFAULT_MIN_PROOF_DEPTH = 10;
   private static final int ALLOWED_MAX_PROOF_DEPTH = 20;
+  private static final int ALLOWED_MAX_LEAF_COUNT = 1 << ALLOWED_MAX_PROOF_DEPTH;
   private final int targetProofDepth;
   private final boolean useSecureSeed;
 
@@ -72,6 +73,10 @@ public final class MerkleTree {
   public MerkleTree(Set<byte[]> leaves, int targetProofDepth, boolean useSecureSeed) {
     if (leaves == null || leaves.isEmpty()) {
       throw new IllegalArgumentException("Leaves must not be null or empty");
+    }
+    if (leaves.size() > ALLOWED_MAX_LEAF_COUNT) {
+      throw new IllegalArgumentException(
+          "Leaves count cannot exceed allowed maximum of " + ALLOWED_MAX_LEAF_COUNT);
     }
     if (targetProofDepth < 0 || targetProofDepth > ALLOWED_MAX_PROOF_DEPTH) {
       throw new IllegalArgumentException(

@@ -82,6 +82,33 @@ class MerkleTreeTest {
       Set<byte[]> leaves = Set.of(generateID(32));
       assertThrows(IllegalArgumentException.class, () -> new MerkleTree(leaves, 21, true));
     }
+
+    @Test
+    @DisplayName(
+        "Given leaves set exceeding allowed maximum leaf count, when constructing tree, then throw IllegalArgumentException")
+    void
+        givenLeavesSetExceedingMaxLeafCount_whenConstructingTree_thenThrowIllegalArgumentException() {
+      Set<byte[]> oversizedSet =
+          new AbstractSet<>() {
+            @Override
+            public Iterator<byte[]> iterator() {
+              return Collections.emptyIterator();
+            }
+
+            @Override
+            public int size() {
+              return (1 << 20) + 1;
+            }
+
+            @Override
+            public boolean isEmpty() {
+              return false;
+            }
+          };
+
+      var ex = assertThrows(IllegalArgumentException.class, () -> new MerkleTree(oversizedSet));
+      assertTrue(ex.getMessage().contains("Leaves count cannot exceed allowed maximum of 1048576"));
+    }
   }
 
   @Nested
@@ -426,16 +453,25 @@ class MerkleTreeTest {
       Set<byte[]> leaves = getRandomIDs(4);
       MerkleTree tree = new MerkleTree(leaves);
 
-      MerkleTree.Proof proof = tree.getProofs().get(0);
-      List<byte[]> siblingHashes = proof.siblingHashes();
-      assertTrue(siblingHashes.size() >= 2, "Tree with 4 leaves should have at least 2 layers");
+      List<MerkleTree.Proof> proofs = tree.getProofs();
+      // proofs.get(0) and proofs.get(1) are siblings in layer 0
+      byte[] h0 = proofs.get(1).siblingHashes().get(0);
+      byte[] h1 = proofs.get(0).siblingHashes().get(0);
 
-      byte[] forgedLeafData = siblingHashes.get(0);
-      byte[] forgedSeedData = generateID(32);
-      List<byte[]> truncatedPath = siblingHashes.subList(1, siblingHashes.size());
+      byte[] left, right;
+      if (Arrays.compare(h0, h1) > 0) {
+        left = h1;
+        right = h0;
+      } else {
+        left = h0;
+        right = h1;
+      }
 
-      boolean verified =
-          MerkleTree.verifyProof(forgedLeafData, forgedSeedData, tree.getRoot(), truncatedPath);
+      List<byte[]> truncatedPath =
+          proofs.get(0).siblingHashes().subList(1, proofs.get(0).siblingHashes().size());
+
+      // Attacker attempts to replay internal node pair (left, right) as (leafData, seedData)
+      boolean verified = MerkleTree.verifyProof(left, right, tree.getRoot(), truncatedPath);
       assertFalse(
           verified,
           "Domain separation (0x00 vs 0x01) must prevent intermediate nodes from verifying as leaves");
@@ -448,23 +484,33 @@ class MerkleTreeTest {
       Set<byte[]> leaves = getRandomIDs(4);
       MerkleTree tree = new MerkleTree(leaves, 0, false);
 
-      MerkleTree.Proof proof = tree.getProofs().get(0);
-      List<byte[]> siblingHashes = proof.siblingHashes();
-      assertTrue(siblingHashes.size() >= 2);
+      List<MerkleTree.Proof> proofs = tree.getProofs();
+      // proofs.get(0) and proofs.get(1) are siblings in layer 0
+      byte[] h0 = proofs.get(1).siblingHashes().get(0);
+      byte[] h1 = proofs.get(0).siblingHashes().get(0);
 
-      byte[] combinedPayload = new byte[64];
-      System.arraycopy(
-          proof.leaf().data(), 0, combinedPayload, 0, Math.min(32, proof.leaf().data().length));
-      System.arraycopy(siblingHashes.get(0), 0, combinedPayload, 32, 32);
+      byte[] left, right;
+      if (Arrays.compare(h0, h1) > 0) {
+        left = h1;
+        right = h0;
+      } else {
+        left = h0;
+        right = h1;
+      }
+
+      // Attacker concatenates sorted internal node pre-images: left (32 bytes) || right (32 bytes)
+      byte[] forged64ByteLeaf = new byte[64];
+      System.arraycopy(left, 0, forged64ByteLeaf, 0, 32);
+      System.arraycopy(right, 0, forged64ByteLeaf, 32, 32);
+
+      List<byte[]> truncatedPath =
+          proofs.get(0).siblingHashes().subList(1, proofs.get(0).siblingHashes().size());
 
       boolean verified =
-          MerkleTree.verifyProof(
-              combinedPayload,
-              new byte[0],
-              tree.getRoot(),
-              siblingHashes.subList(1, siblingHashes.size()));
+          MerkleTree.verifyProof(forged64ByteLeaf, new byte[0], tree.getRoot(), truncatedPath);
       assertFalse(
-          verified, "Domain separation and length prefixing must prevent concatenation forgery");
+          verified,
+          "Domain separation and length prefixing must prevent 64-byte concatenation forgery");
     }
   }
 
