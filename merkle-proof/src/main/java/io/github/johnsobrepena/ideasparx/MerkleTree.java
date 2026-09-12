@@ -16,6 +16,8 @@ import java.util.*;
  */
 public final class MerkleTree {
 
+  private static final byte LEAF_PREFIX = (byte) 0x00;
+  private static final byte INTERNAL_PREFIX = (byte) 0x01;
   private static final int SEED_NUM_BYTES = 32;
   private static final int PADDING_ELEM_NUM_BYTES = 32;
   private static final int DEFAULT_MIN_PROOF_DEPTH = 0;
@@ -235,6 +237,7 @@ public final class MerkleTree {
     }
 
     MessageDigest md = newDigest();
+    md.update(INTERNAL_PREFIX);
     md.update(left);
     md.update(right);
     return md.digest();
@@ -242,8 +245,9 @@ public final class MerkleTree {
 
   private static byte[] computeLeafHash(byte[] seed, byte[] leafData) {
     var md = newDigest();
-    var buffer = ByteBuffer.allocate((2 * Integer.BYTES) + seed.length + leafData.length);
-    buffer.putInt(seed.length).put(seed).putInt(leafData.length).put(leafData);
+    var buffer =
+        ByteBuffer.allocate(Byte.BYTES + (2 * Integer.BYTES) + seed.length + leafData.length);
+    buffer.put(LEAF_PREFIX).putInt(seed.length).put(seed).putInt(leafData.length).put(leafData);
     return md.digest(buffer.array());
   }
 
