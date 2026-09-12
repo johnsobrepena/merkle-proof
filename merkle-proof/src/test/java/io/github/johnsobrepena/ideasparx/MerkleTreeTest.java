@@ -80,7 +80,9 @@ class MerkleTreeTest {
     void
         givenTargetProofDepthExceedingMax_whenConstructingTree_thenThrowIllegalArgumentException() {
       Set<byte[]> leaves = Set.of(generateID(32));
-      assertThrows(IllegalArgumentException.class, () -> new MerkleTree(leaves, 21, true));
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new MerkleTree(leaves, MerkleTree.ALLOWED_MAX_PROOF_DEPTH + 1, true));
     }
 
     @Test
@@ -88,7 +90,6 @@ class MerkleTreeTest {
         "Given leaves set exceeding allowed maximum leaf count, when constructing tree, then throw IllegalArgumentException")
     void
         givenLeavesSetExceedingMaxLeafCount_whenConstructingTree_thenThrowIllegalArgumentException() {
-      int mockSize = (1 << 13);
       Set<byte[]> oversizedSet =
           new AbstractSet<>() {
             @Override
@@ -98,7 +99,7 @@ class MerkleTreeTest {
 
             @Override
             public int size() {
-              return mockSize + 1;
+              return MerkleTree.ALLOWED_MAX_LEAF_COUNT + 1;
             }
 
             @Override
@@ -109,7 +110,10 @@ class MerkleTreeTest {
 
       var ex = assertThrows(IllegalArgumentException.class, () -> new MerkleTree(oversizedSet));
       assertTrue(
-          ex.getMessage().contains("Leaves count cannot exceed allowed maximum of " + mockSize));
+          ex.getMessage()
+              .contains(
+                  "Leaves count cannot exceed allowed maximum of "
+                      + MerkleTree.ALLOWED_MAX_LEAF_COUNT));
     }
   }
 
@@ -183,6 +187,20 @@ class MerkleTreeTest {
                 proof.leaf().data(), proof.leaf().seed(), root, proof.siblingHashes());
         assertTrue(verified, "Proof verification failed for non-secure seed tree");
       }
+    }
+
+    @Test
+    @DisplayName(
+        "Given default tree constructor, when retrieving proofs, then proof path is padded to DEFAULT_MIN_PROOF_DEPTH")
+    void givenDefaultConstructor_whenRetrievingProofs_thenProofPathIsPaddedToDefaultMinDepth() {
+      Set<byte[]> leaves = getRandomIDs(1);
+      MerkleTree tree = new MerkleTree(leaves);
+
+      MerkleTree.Proof proof = tree.getProofs().get(0);
+      assertEquals(
+          MerkleTree.DEFAULT_MIN_PROOF_DEPTH - 1,
+          proof.siblingHashes().size(),
+          "Proof path length must equal DEFAULT_MIN_PROOF_DEPTH - 1 for single-leaf tree");
     }
   }
 
@@ -412,7 +430,7 @@ class MerkleTreeTest {
       byte[] root = generateID(32);
 
       List<byte[]> excessiveProof = new ArrayList<>();
-      for (int i = 0; i < 21; i++) {
+      for (int i = 0; i < MerkleTree.ALLOWED_MAX_PROOF_DEPTH + 1; i++) {
         excessiveProof.add(generateID(32));
       }
 
@@ -420,7 +438,9 @@ class MerkleTreeTest {
           assertThrows(
               IllegalArgumentException.class,
               () -> MerkleTree.verifyProof(leaf, seed, root, excessiveProof));
-      assertTrue(ex.getMessage().contains("allowed maximum proof depth of 13"));
+      assertTrue(
+          ex.getMessage()
+              .contains("allowed maximum proof depth of " + MerkleTree.ALLOWED_MAX_PROOF_DEPTH));
     }
 
     @Test

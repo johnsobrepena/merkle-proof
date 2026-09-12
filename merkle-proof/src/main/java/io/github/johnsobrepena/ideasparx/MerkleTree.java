@@ -11,8 +11,9 @@ import java.security.SecureRandom;
 import java.util.*;
 
 /**
- * Merkle Tree with salted leaves and optional depth padding. Thread-safe. Immutable after
- * construction.
+ * Merkle Tree with salted leaves and depth padding. Thread-safe for concurrent read access.
+ * Designed for zero-copy performance; callers must treat input arrays and returned proof byte
+ * arrays as read-only.
  */
 public final class MerkleTree {
 
@@ -20,9 +21,16 @@ public final class MerkleTree {
   private static final byte INTERNAL_PREFIX = (byte) 0x01;
   private static final int SEED_NUM_BYTES = 32;
   private static final int PADDING_ELEM_NUM_BYTES = 32;
-  private static final int DEFAULT_MIN_PROOF_DEPTH = 10;
-  private static final int ALLOWED_MAX_PROOF_DEPTH = 13;
-  private static final int ALLOWED_MAX_LEAF_COUNT = 1 << ALLOWED_MAX_PROOF_DEPTH;
+
+  /** Default target proof depth applied when constructing a tree with default parameters. */
+  public static final int DEFAULT_MIN_PROOF_DEPTH = 10;
+
+  /** Maximum allowed proof depth supported by tree construction and verification. */
+  public static final int ALLOWED_MAX_PROOF_DEPTH = 13;
+
+  /** Maximum allowed number of leaves permitted in a tree (1 << ALLOWED_MAX_PROOF_DEPTH). */
+  public static final int ALLOWED_MAX_LEAF_COUNT = 1 << ALLOWED_MAX_PROOF_DEPTH;
+
   private final int targetProofDepth;
   private final boolean useSecureSeed;
 
@@ -51,11 +59,11 @@ public final class MerkleTree {
   private final List<byte[]> proofPaddings;
 
   /**
-   * Construct tree with default depth (no padding) and secure seeds.
+   * Construct tree with default target proof depth (10) and secure seeds.
    *
    * @param leaves Set of unique leaf payload byte arrays.
-   * @throws IllegalArgumentException If leaves is null, empty, contains null, or has duplicate
-   *     content.
+   * @throws IllegalArgumentException If leaves is null, empty, contains null or empty elements,
+   *     exceeds ALLOWED_MAX_LEAF_COUNT, or has duplicate content.
    */
   public MerkleTree(Set<byte[]> leaves) {
     this(leaves, DEFAULT_MIN_PROOF_DEPTH, true);
@@ -65,10 +73,12 @@ public final class MerkleTree {
    * Construct tree with custom target depth and seed option.
    *
    * @param leaves Set of unique leaf payload byte arrays.
-   * @param targetProofDepth Target minimum depth for proof padding (0 for no padding).
+   * @param targetProofDepth Target minimum depth for proof padding (0 for no padding, up to
+   *     ALLOWED_MAX_PROOF_DEPTH).
    * @param useSecureSeed Enable random 32-byte salt seeds per leaf if true.
-   * @throws IllegalArgumentException If leaves is null, empty, contains null, or has duplicate
-   *     content.
+   * @throws IllegalArgumentException If leaves is null, empty, contains null or empty elements,
+   *     exceeds ALLOWED_MAX_LEAF_COUNT, has duplicate content, or targetProofDepth is negative or
+   *     exceeds ALLOWED_MAX_PROOF_DEPTH.
    */
   public MerkleTree(Set<byte[]> leaves, int targetProofDepth, boolean useSecureSeed) {
     if (leaves == null || leaves.isEmpty()) {
@@ -285,7 +295,11 @@ public final class MerkleTree {
    * @param seedData Salt seed bytes.
    * @param rootHash Expected 32-byte root hash.
    * @param proof List of 32-byte sibling hashes.
-   * @return True if proof path reconstructs rootHash; false otherwise.
+   * @return True if proof path reconstructs rootHash; false if valid proof path does not match
+   *     rootHash.
+   * @throws NullPointerException If seedData or proof is null.
+   * @throws IllegalArgumentException If leafData or rootHash is null/empty, proof depth exceeds
+   *     ALLOWED_MAX_PROOF_DEPTH, or any proof element is null or not 32 bytes.
    */
   public static boolean verifyProof(
       byte[] leafData, byte[] seedData, byte[] rootHash, List<byte[]> proof) {
