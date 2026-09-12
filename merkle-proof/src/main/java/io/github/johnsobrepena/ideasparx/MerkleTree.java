@@ -21,7 +21,7 @@ public final class MerkleTree {
   private static final int SEED_NUM_BYTES = 32;
   private static final int PADDING_ELEM_NUM_BYTES = 32;
   private static final int DEFAULT_MIN_PROOF_DEPTH = 10;
-  private static final int ALLOWED_MAX_PROOF_DEPTH = 20;
+  private static final int ALLOWED_MAX_PROOF_DEPTH = 13;
   private static final int ALLOWED_MAX_LEAF_COUNT = 1 << ALLOWED_MAX_PROOF_DEPTH;
   private final int targetProofDepth;
   private final boolean useSecureSeed;

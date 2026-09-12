@@ -88,6 +88,7 @@ class MerkleTreeTest {
         "Given leaves set exceeding allowed maximum leaf count, when constructing tree, then throw IllegalArgumentException")
     void
         givenLeavesSetExceedingMaxLeafCount_whenConstructingTree_thenThrowIllegalArgumentException() {
+      int mockSize = (1 << 13);
       Set<byte[]> oversizedSet =
           new AbstractSet<>() {
             @Override
@@ -97,7 +98,7 @@ class MerkleTreeTest {
 
             @Override
             public int size() {
-              return (1 << 20) + 1;
+              return mockSize + 1;
             }
 
             @Override
@@ -107,7 +108,8 @@ class MerkleTreeTest {
           };
 
       var ex = assertThrows(IllegalArgumentException.class, () -> new MerkleTree(oversizedSet));
-      assertTrue(ex.getMessage().contains("Leaves count cannot exceed allowed maximum of 1048576"));
+      assertTrue(
+          ex.getMessage().contains("Leaves count cannot exceed allowed maximum of " + mockSize));
     }
   }
 
@@ -418,7 +420,7 @@ class MerkleTreeTest {
           assertThrows(
               IllegalArgumentException.class,
               () -> MerkleTree.verifyProof(leaf, seed, root, excessiveProof));
-      assertTrue(ex.getMessage().contains("allowed maximum proof depth of 20"));
+      assertTrue(ex.getMessage().contains("allowed maximum proof depth of 13"));
     }
 
     @Test
