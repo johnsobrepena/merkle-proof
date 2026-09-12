@@ -73,8 +73,9 @@ public final class MerkleTree {
     if (leaves == null || leaves.isEmpty()) {
       throw new IllegalArgumentException("Leaves must not be null or empty");
     }
-    if (targetProofDepth < 0) {
-      throw new IllegalArgumentException("Target proof depth must not be negative");
+    if (targetProofDepth < 0 || targetProofDepth > ALLOWED_MAX_PROOF_DEPTH) {
+      throw new IllegalArgumentException(
+          "Target proof depth must be between 0 and " + ALLOWED_MAX_PROOF_DEPTH);
     }
     this.proofPaddings = new ArrayList<>();
     this.targetProofDepth = targetProofDepth;

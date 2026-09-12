@@ -52,9 +52,8 @@ class MerkleTreeTest {
       leaves.add(data1);
       leaves.add(data2);
 
-      if (leaves.size() == 2) {
-        assertThrows(IllegalArgumentException.class, () -> new MerkleTree(leaves));
-      }
+      assertEquals(2, leaves.size(), "Set should contain both array instances");
+      assertThrows(IllegalArgumentException.class, () -> new MerkleTree(leaves));
     }
   }
 
